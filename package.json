@@ -2,12 +2,12 @@
   "name": "obby",
   "version": "0.1.0",
   "description": "Object helper functions",
-  "main": "lib/obby.ts",
-  "types": "lib/index.d.ts",
+  "main": "lib/obby.js",
+  "types": "lib/obby.d.ts",
   "scripts": {
     "clean": "rm -rf lib coverage",
     "build": "tsc -p tsconfig.json",
-    "test": "jest --runInBand"
+    "test": "jest --runInBand --passWithNoTests"
   },
   "repository": {
     "type": "git",
@@ -23,5 +23,14 @@
   "bugs": {
     "url": "https://github.com/jbowwww/obby/issues"
   },
-  "homepage": "https://github.com/jbowwww/obby#readme"
+  "homepage": "https://github.com/jbowwww/obby#readme",
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.10.1",
+    "husky": "^9.1.7",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
 }

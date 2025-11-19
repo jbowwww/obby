@@ -1,4 +1,82 @@
-import { DataProperties, Function, FunctionProperties, FunctionPropertyNames, isFunction, NonFunctionPropertyNames } from ".";
+import { isDate } from "node:util/types";
+
+export const isBoolean = (v: any): v is boolean => typeof v === "boolean";
+export const isNumber = (v: any): v is number => typeof v === "number";
+export const isString = (v: any): v is string => typeof v === "string";
+export const isFalseOrEmptyString = (v: string): boolean => v === undefined || v === null || v.trim() === "";
+export const hasPrototype = (prototype: object, value: Constructor<any>): boolean =>
+    value && (value === prototype || (prototype && hasPrototype(prototype, value.prototype)));
+export const isObject = (o: any): o is Object => o !== null && typeof o === "object";
+export const isNonDateObject = (o: any): o is Object => typeof o === "object" && !isDate(o) && !(o instanceof Date);
+
+export type AnyParameters<T = any> = [] | [T] | T[];  // Use for ...rest parameters on functions, this type better handles both 0, 1, or more arguments, while using any[] sometimes fails with one parameter
+export type NonEmptyArray<T = any> = [T] | T[];
+export type Optional<T extends {}, K extends keyof T> = Omit<T, K> & { [P in K]?: T[P]; }
+export type PartiallyRequired<T extends {}, R extends keyof T> = Required<Pick<T, R>> & Partial<Omit<T, R>>;
+
+export type Function<A extends AnyParameters = any[], R extends any = any> = ((...args: A) => R) & { name?: string; };
+
+export const isFunction = <A extends AnyParameters = AnyParameters, R extends any = any>(fn: any): fn is Function<A, R> => typeof fn === "function";
+export const isPlainFunction = (fn: any): fn is Function => isFunction(fn) && !isAsyncGeneratorFunction(fn);
+export const getFunctionName = (fn: Function, ...fallbackNames: string[]) => (fn.name?.trim() ?? "").length > 0 ? fn.name : fallbackNames.length > 0 ? fallbackNames.reduce((setName, nextName) => setName?.trim() === "" ? nextName : setName) : "(anon)";
+export const makeFunction = <P extends AnyParameters, R extends any>(name: string, fn: Function<P, R>) => Object.defineProperty(fn, "name", { value: name });
+export const isThenable = <T = any>(value: any): value is PromiseLike<T> => "then" in value && typeof value.then === "function";
+
+export type AsyncGeneratorFunction<I = any, O = any, R = any, N = any, L extends number = 0 | 1> =
+    (...args:
+        L extends 1 ? [AsyncIterable<I>/* , ...extra: AnyParameters */] :
+        L extends 0 ? [/* ...extra: AnyParameters */] : [AsyncIterable<I>, ...extra: AnyParameters]) => AsyncGenerator<O, R, N>;
+
+export const isIterable = <T = any, R = any, N = any>(value: any): value is Iterable<T, R, N> => value && Symbol.iterator in value && typeof value[Symbol.iterator] === "function";
+export const isAsyncIterable = <T = any, R = any, N = any>(value: any): value is AsyncIterable<T, R, N> => value && Symbol.asyncIterator in value && typeof value[Symbol.asyncIterator] === "function";
+export const isAsyncGenerator = <T = any, R = any, N = any>(value: any): value is AsyncGenerator<T, R, N> => value && isAsyncIterable(value) && "next" in value && typeof value.next === "function";
+export const isAsyncGeneratorFunction = <I = any, O = any, R = any, N = any, L extends 0 | 1 = 0 | 1>(value: any, argumentsLength?: L): value is AsyncGeneratorFunction<I, R, N> =>
+    value && typeof value === "function" && isAsyncGenerator<O, R, N>(value.prototype) && (!argumentsLength || value.length === argumentsLength);
+
+export type TypeGuard<T> = (value: any) => value is T;
+
+export type AbstractConstructor<T = any> = abstract new (...args: any[]) => T;
+export type Constructor<T = any> = { name: string; new(...args: any[]): T; /* prototype: T; */ };
+export const isConstructor = <T = {}>(value: any, ctor?: AbstractConstructor<T>): value is Constructor<T> =>
+    value && typeof value === "function" && value.prototype && (
+        !ctor || (typeof ctor.name === "string" &&
+            typeof ctor.prototype === "object" && hasPrototype(ctor.prototype, value as Constructor<T>)));
+
+export type AsyncFunction<A extends AnyParameters = [], R extends any = void> = (...args: A) => Promise<R>;
+export type MaybeAsyncFunction<A extends AnyParameters = [], R extends any = void> = (...args: A) => R | Promise<R>;
+
+export type PropertyDescriptors<T extends {}> = { [K in keyof T]: TypedPropertyDescriptor<T[K]>; };
+export type FunctionPropertyNames<T extends {}> = { [K in keyof T]: T[K] extends Function ? K : never; }[keyof T];
+export type FunctionProperties<T extends {}> = Pick<T, FunctionPropertyNames<T>>;
+export type NonFunctionPropertyNames<T extends {}> = { [K in keyof T]: T[K] extends Function ? never : K; }[keyof T];
+export type DataProperties<T extends {}> = Pick<T, NonFunctionPropertyNames<T>>;
+
+export type KeyValuePair<K extends PropertyKey = PropertyKey, V = any> = [K: K, V: V];
+export type FilterFn<T extends {}> = (kv: KeyValuePair<keyof T, T[keyof T]>) => boolean;
+export type MapFn<T extends {}, TOut extends {} = T> = (kv: KeyValuePair<keyof T, T[keyof T]>/* , obj: {} */) => KeyValuePair<keyof TOut, TOut[keyof TOut]>;
+function _mapObject<T extends { [K: string]: any; }, TOut extends { [K: string]: any; }>(o: T, map: MapFn<T, TOut>): TOut;
+function _mapObject<T extends { [K: string]: any; }, TOut extends { [K: string]: any; }>(o: T, filter: FilterFn<T> | MapFn<T, TOut>, map?: MapFn<T, TOut>): TOut;
+function _mapObject<T extends { [K: string]: any; }, TOut extends { [K: string]: any; }>(o: T, filterOrMap: FilterFn<T> | MapFn<T, TOut>, map?: MapFn<T, TOut>): TOut {
+    return Object.fromEntries((Object.entries(o) as KeyValuePair<keyof T, T[keyof T]>[])
+        .filter(map ? filterOrMap : () => true)
+        .map(map ?? ((kv: KeyValuePair<keyof T, T[keyof T]>) => kv as KeyValuePair<PropertyKey, any>))) as TOut;
+}
+_mapObject.recursive = function <T extends { [K: string]: any; }, TOut extends { [K: string]: any; }>(o: T, filterOrMap: FilterFn<T[keyof T]> | MapFn<T[keyof T], TOut>, map?: MapFn<T[keyof T], TOut>): TOut {
+    const filter = map ? filterOrMap as FilterFn<any> : () => true;
+    const recursiveMap: MapFn<any, any> = ([K, V]: [any, any]) => (map ? map : filterOrMap as MapFn<any, TOut>)([K, _mapObject.recursive(V, filter, recursiveMap)]);
+    return _mapObject<any, TOut>(o, filter, recursiveMap)
+};
+export const mapObject: typeof _mapObject & { recursive: typeof _mapObject.recursive; } = Object.assign(_mapObject, { recursive: _mapObject.recursive });
+export const filterObject = <T extends {}>(o: T, filter: FilterFn<T>): Partial<T> => Object.fromEntries((Object.entries(o) as KeyValuePair<keyof T, T[keyof T]>[]).filter(filter)) as Partial<T>;
+
+export const partialObject = <T extends {}>(o: T, ...keys: (keyof T)[]): Partial<T> => filterObject(o, ([K, V]) => !!keys.find(k => k === K));
+export const pickFromObject = partialObject;
+
+export const omitFromObject = <T extends {}, K extends keyof T>(o: T, ...keys: K[]): Omit<T, K> => filterObject(o, ([K, V]) => !keys.find(k => k === K)) as Omit<T, K>;
+
+export type ValueUnion<T extends {}> = T[keyof T];
+export type DiscriminateUnion<T, K extends keyof T, V extends T[K]> = Extract<T, Record<K, V>>;
+export type DiscriminatedModel<T extends Record<K, T[K]>, K extends PropertyKey = "_T"> = { [V in T[K]]: DiscriminateUnion<T, K, V> };
 
 export namespace obby {
 
@@ -95,7 +173,7 @@ export class obby<I extends {}> {
     static pick<I extends {}, K extends keyof I>(input: I, ...keys: K[]): Pick<I, K> {
         return this.filter(input, ([K, V]) => keys.includes(K as K)) as Pick<I, K>;
     }
-    
+
     static omit<I extends {}, K extends keyof I>(input: I, ...keys: K[]): Omit<I, K> {
         return this.filter(input, ([K, V]) => keys.includes(K as K)) as Omit<I, K>;
     }
@@ -121,7 +199,7 @@ export class obby<I extends {}> {
     getParts() { return obby.getParts(this.input); }
     getPartsDescriptors() { return obby.getPartsDescriptors(this.input); }
     filter(filterFn: obby.FilterFn<I>) { return new obby(obby.filter<I>(this.input, filterFn)); }
-    split(input: I, filterFn: obby.FilterFn<I>) { return new obby(obby.split<I>(this.input, filterFn))}
+    split(input: I, filterFn: obby.FilterFn<I>) { return new obby(obby.split<I>(this.input, filterFn)) }
     map<O extends Record<PropertyKey, any>>(mapFn: obby.MapFn<I, O>) { return new obby(obby.map<I, O>(this.input, mapFn)); }
     pick(...keys: (keyof I)[]) { return new obby(obby.pick(this.input, ...keys)); }
     omit(...keys: (keyof I)[]) { return new obby(obby.filter(this.input, ([K, V]) => keys.includes(K))); }
