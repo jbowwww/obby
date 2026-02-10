@@ -6,8 +6,9 @@
   "types": "lib/obby.d.ts",
   "scripts": {
     "clean": "rm -rf lib coverage",
-    "build": "tsc -p tsconfig.json",
-    "test": "jest --runInBand --passWithNoTests"
+    "ts-node": "node -r ts-node/register",
+    "build": "npm run ts-node -- ./node_modules/typescript/bin/tsc -p tsconfig.json",
+    "test": "npm run ts-node -- ./node_modules/jest/bin/jest.js --runInBand --passWithNoTests"
   },
   "repository": {
     "type": "git",
