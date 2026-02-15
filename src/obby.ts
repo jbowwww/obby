@@ -19,8 +19,17 @@ export type Function<A extends AnyParameters = any[], R extends any = any> = ((.
 export const isFunction = <A extends AnyParameters = AnyParameters, R extends any = any>(fn: any): fn is Function<A, R> => typeof fn === "function";
 export const isPlainFunction = (fn: any): fn is Function => isFunction(fn) && !isAsyncGeneratorFunction(fn);
 export const getFunctionName = (fn: Function, ...fallbackNames: string[]) => (fn.name?.trim() ?? "").length > 0 ? fn.name : fallbackNames.length > 0 ? fallbackNames.reduce((setName, nextName) => setName?.trim() === "" ? nextName : setName) : "(anon)";
-export const makeFunction = <P extends AnyParameters, R extends any>(name: string, fn: Function<P, R>) => Object.defineProperty(fn, "name", { value: name });
 export const isThenable = <T = any>(value: any): value is PromiseLike<T> => "then" in value && typeof value.then === "function";
+export const makeFunction = <P extends AnyParameters, R extends any>(name: string, fn: Function<P, R>) => Object.defineProperty(fn, "name", { value: name });
+export type ObjectOrFunction = {} | (() => {});
+export function makeObject<O extends ObjectOrFunction, A extends AnyParameters>(objectOrFunction: O, ...args: A): O;
+export function makeObject<O extends {}, A extends AnyParameters>(args: AnyParameters, fn: Function<A, O>): O;
+export function makeObject<O extends {}, A extends AnyParameters>(objectOrFunctionOrArgs: any, ...fnOrArgs: [Function] | A): O {
+    return (
+        isFunction(objectOrFunctionOrArgs) ? objectOrFunctionOrArgs(...fnOrArgs) :
+        Array.isArray(objectOrFunctionOrArgs) && isFunction(fnOrArgs) ? fnOrArgs(objectOrFunctionOrArgs) :
+        objectOrFunctionOrArgs);
+}
 
 export type AsyncGeneratorFunction<I = any, O = any, R = any, N = any, L extends number = 0 | 1> =
     (...args:
