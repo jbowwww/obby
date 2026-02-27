@@ -14,6 +14,25 @@ export type NonEmptyArray<T = any> = [T] | T[];
 export type Optional<T extends {}, K extends keyof T> = Omit<T, K> & { [P in K]?: T[P]; }
 export type PartiallyRequired<T extends {}, R extends keyof T> = Required<Pick<T, R>> & Partial<Omit<T, R>>;
 
+export type OptionsDefaultContainer<T extends {}> = {
+    default: T;
+    mergeDefaults: (options?: Partial<T>) => T;
+    applyDefaults: (options: Partial<T>) => void;
+};
+export function mergeOptions<T extends {}>(this: OptionsDefaultContainer<T>, options?: Partial<T>): T {
+    return ({ ...this.default, ...options, });
+}
+export function applyDefaultOptions<T extends {}>(this: OptionsDefaultContainer<T>, options: Partial<T>): void {
+    for (const name in this.default) {
+        if (!(name in options)) {
+            options[name as keyof T] = this.default[name as keyof T];
+        }
+    }
+}
+export function makeDefaultOptions<T extends {}>(defaultOptions: T): OptionsDefaultContainer<T> {
+    return ({ default: defaultOptions, mergeDefaults: mergeOptions, applyDefaults: applyDefaultOptions, });
+}
+
 export type Function<A extends AnyParameters = any[], R extends any = any> = ((...args: A) => R) & { name?: string; };
 
 export const isFunction = <A extends AnyParameters = AnyParameters, R extends any = any>(fn: any): fn is Function<A, R> => typeof fn === "function";
