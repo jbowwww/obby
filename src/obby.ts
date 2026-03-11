@@ -100,12 +100,12 @@ export type AsyncGeneratorFunction<I = any, O = any, R = any, N = any, L extends
         L extends 1 ? [AsyncIterable<I>/* , ...extra: AnyParameters */] :
         L extends 0 ? [/* ...extra: AnyParameters */] : [AsyncIterable<I>, ...extra: AnyParameters]) => AsyncGenerator<O, R, N>;
 
-export const isIterable = <T = any, R = any, N = any>(value: any): value is Iterable<T, R, N> => value && Symbol.iterator in value && typeof value[Symbol.iterator] === "function";
-export const isGenerator = <T = any, R = any, N = any>(value: any): value is Generator<T, R, N> => value && isIterable(value) && "next" in value && typeof value.next === "function";
-export const isAsyncIterable = <T = any, R = any, N = any>(value: any): value is AsyncIterable<T, R, N> => value && Symbol.asyncIterator in value && typeof value[Symbol.asyncIterator] === "function";
-export const isAsyncGenerator = <T = any, R = any, N = any>(value: any): value is AsyncGenerator<T, R, N> => value && isAsyncIterable(value) && "next" in value && typeof value.next === "function";
+export const isIterable = <T = any, R = any, N = any>(value: any): value is Iterable<T, R, N> => typeof value === "object" && Symbol.iterator in value && typeof value[Symbol.iterator] === "function";
+export const isGenerator = <T = any, R = any, N = any>(value: any): value is Generator<T, R, N> => typeof value === "object" && isIterable(value) && "next" in value && typeof value.next === "function";
+export const isAsyncIterable = <T = any, R = any, N = any>(value: any): value is AsyncIterable<T, R, N> => typeof value === "object" && Symbol.asyncIterator in value && typeof value[Symbol.asyncIterator] === "function";
+export const isAsyncGenerator = <T = any, R = any, N = any>(value: any): value is AsyncGenerator<T, R, N> => typeof value === "object" && isAsyncIterable(value) && "next" in value && typeof value.next === "function";
 export const isAsyncGeneratorFunction = <I = any, O = any, R = any, N = any, L extends 0 | 1 = 0 | 1>(value: any, argumentsLength?: L): value is AsyncGeneratorFunction<I, R, N> =>
-    value && typeof value === "function" && isAsyncGenerator<O, R, N>(value.prototype) && (!argumentsLength || value.length === argumentsLength);
+    typeof value === "function" && typeof value === "function" && isAsyncGenerator<O, R, N>(value.prototype) && (!argumentsLength || value.length === argumentsLength);
 
 export type TypeGuard<T> = (value: any) => value is T;
 
