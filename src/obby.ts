@@ -9,6 +9,24 @@ export const hasPrototype = (prototype: object, value: Constructor<any>): boolea
 export const isObject = (o: any): o is Object => !!o && typeof o === "object" && !Array.isArray(o) && !isDate(o);
 export const isNonDateObject = (o: any): o is Object => typeof o === "object" && !isDate(o) && !(o instanceof Date);
 export const isNonArrayObject = (o: any): o is Object => typeof o === "object" && !Array.isArray(o) && !(o instanceof Date);
+const _isPropertyDescriptor = (value: any): value is PropertyDescriptor => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+    const hasDescriptorKey = "value" in value || "writable" in value || "get" in value || "set" in value || "enumerable" in value || "configurable" in value;
+    const hasAccessorKey = "get" in value || "set" in value;
+    const hasDataKey = "value" in value || "writable" in value;
+    return (
+        hasDescriptorKey &&
+        !(
+            ("get" in value && value.get !== undefined && typeof value.get !== "function") ||
+            ("set" in value && value.set !== undefined && typeof value.set !== "function") ||
+            ("enumerable" in value && typeof value.enumerable !== "boolean") ||
+            ("configurable" in value && typeof value.configurable !== "boolean") ||
+            ("writable" in value && typeof value.writable !== "boolean") ||
+            (hasAccessorKey && hasDataKey)
+        )
+    );
+};
+export const isPropertyDescriptor = _isPropertyDescriptor;
 export const isPlainObject = (o: any): o is Record<string, unknown> => {
   if (!isObject(o)) return false;
   const proto = Object.getPrototypeOf(o);
@@ -124,6 +142,44 @@ export type FunctionPropertyNames<T extends {}> = { [K in keyof T]: T[K] extends
 export type FunctionProperties<T extends {}> = Pick<T, FunctionPropertyNames<T>>;
 export type NonFunctionPropertyNames<T extends {}> = { [K in keyof T]: T[K] extends Function ? never : K; }[keyof T];
 export type DataProperties<T extends {}> = Pick<T, NonFunctionPropertyNames<T>>;
+export type PropertyDefinition<T = any> = T | TypedPropertyDescriptor<T>;
+export type PropertyDefinitionMap<T extends {}> = { [K in keyof T]: PropertyDefinition<T[K]>; };
+export type InferPropertyDefinition<T> =
+    T extends { value: infer V } ? V :
+    T extends { get: (...args: any[]) => infer V } ? V :
+    T extends { set: (value: infer V, ...args: any[]) => any } ? V :
+    T;
+export type InferPropertyDefinitionMap<T extends Record<PropertyKey, any>> = { [K in keyof T]: InferPropertyDefinition<T[K]>; };
+
+export type Wrap = {
+    <T extends object, O extends {}>(target: T, properties: PropertyDefinitionMap<O>): T & O;
+    <T extends object, O extends Record<PropertyKey, any>>(target: T, properties: O): T & InferPropertyDefinitionMap<O>;
+};
+const _wrap: Wrap = (target: object, properties: Record<PropertyKey, any>) => Object.defineProperties(
+    target,
+    Reflect.ownKeys(properties).reduce<Record<PropertyKey, PropertyDescriptor>>((descriptors, key) => {
+        const property = properties[key];
+        descriptors[key] = !isPropertyDescriptor(property) ? {
+            value: property,
+            enumerable: false,
+            configurable: false,
+            writable: false,
+        } : (
+            ("get" in property || "set" in property) ? {
+                enumerable: false,
+                configurable: false,
+                ...property,
+            } : {
+                enumerable: false,
+                configurable: false,
+                writable: false,
+                ...property,
+            }
+        );
+        return descriptors;
+    }, {})
+) as any;
+export const wrap = _wrap;
 
 export type KeyValuePair<K extends PropertyKey = PropertyKey, V = any> = [K: K, V: V];
 export type FilterFn<T extends {}> = (kv: KeyValuePair<keyof T, T[keyof T]>) => boolean;
@@ -159,6 +215,7 @@ export class obby<I extends {}> {
     valueOf() { return this.input; }
     getParts() { return obby.getParts(this.input); }
     getPartsDescriptors() { return obby.getPartsDescriptors(this.input); }
+    wrap<O extends Record<PropertyKey, any>>(properties: O) { return new obby(obby.wrap(this.input, properties)); }
     filter(filterFn: obby.FilterFn<I>) { return new obby(obby.filter<I>(this.input, filterFn)); }
     split(input: I, filterFn: obby.FilterFn<I>) { return new obby(obby.split<I>(this.input, filterFn)) }
     map<O extends Record<PropertyKey, any>>(mapFn: obby.MapFn<I, O>) { return new obby(obby.map<I, O>(this.input, mapFn)); }
@@ -169,6 +226,7 @@ export class obby<I extends {}> {
 }
 
 export namespace obby {
+    export const isPropertyDescriptor = _isPropertyDescriptor;
     export const isMethodProperty = (descriptor: PropertyDescriptor) => "value" in descriptor && typeof descriptor.value === "function";
     export const isDataProperty = (descriptor: PropertyDescriptor) => "value" in descriptor && typeof descriptor.value !== "function";
     export const isAccessorProperty = (descriptor: PropertyDescriptor) => ("get" in descriptor && typeof descriptor.get === "function") || ("set" in descriptor && typeof descriptor.set === "function");
@@ -176,6 +234,7 @@ export namespace obby {
     export const isSetterProperty = (descriptor: PropertyDescriptor) => "set" in descriptor && typeof descriptor.set === "function";
 
     export type PropertyDescriptorMap<T extends {}> = { [K in keyof T]: TypedPropertyDescriptor<T[K]>; };
+    export type PropertyDefinitionMap<T extends {}> = { [K in keyof T]: PropertyDefinition<T[K]>; };
     export type FunctionPropertyNames<T extends {}> = { [K in keyof T]: T[K] extends Function ? K : never; }[keyof T];
     export type FunctionProperties<T extends {}, K extends FunctionPropertyNames<T> = FunctionPropertyNames<T>> = { [k in K]: T[k] extends Function ? T[k] : never; };
     export type NonFunctionPropertyNames<T extends {}> = { [K in keyof T]: T[K] extends Function ? never : K; }[keyof T];
@@ -231,6 +290,8 @@ export namespace obby {
         return parts;
     }
 
+    export const wrap: Wrap = _wrap;
+
     export function filter<I extends {}>(input: I, filterFn: obby.FilterFn<I>): Partial<I> {
         return Object.keys(input).reduce<Partial<I>>((result, key) => {
             if (filterFn([key as keyof I, input[key as keyof I]])) {
@@ -284,3 +345,4 @@ export namespace obby {
     // }
 };
 
+export default obby;

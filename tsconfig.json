@@ -3,16 +3,17 @@
         "target": "ES2020",
         "module": "commonjs",
         "declaration": true,
+        "rootDir": "src",
         "outDir": "lib",
         "strict": true,
         "esModuleInterop": true,
         "skipLibCheck": true
     },
     "include": [
-        "src",
-        "jest.config.ts"
+        "src"
     ],
     "exclude": [
-        "test"
+        "test",
+        "src/**/*.test.ts"
     ]
 }
