@@ -113,6 +113,12 @@ export function makeObject<O extends {}, A extends AnyParameters>(objectOrFuncti
         objectOrFunctionOrArgs);
 }
 
+export function isGetterDescriptor(value: PropertyDescriptor): boolean { return !!value.get; }
+export function isSetterDescriptor(value: PropertyDescriptor): boolean { return !!value.set; }
+export function isDataDescriptor(value: PropertyDescriptor): boolean { return !!value.value; }
+
+export type Class<A extends { new(...args: AnyParameters): A; } = any, P extends AnyParameters = AnyParameters> = { new(...args: P): InstanceType<A>; };
+
 export type AsyncGeneratorFunction<I = any, O = any, R = any, N = any, L extends number = 0 | 1> =
     (...args:
         L extends 1 ? [AsyncIterable<I>/* , ...extra: AnyParameters */] :
@@ -142,6 +148,15 @@ export type FunctionPropertyNames<T extends {}> = { [K in keyof T]: T[K] extends
 export type FunctionProperties<T extends {}> = Pick<T, FunctionPropertyNames<T>>;
 export type NonFunctionPropertyNames<T extends {}> = { [K in keyof T]: T[K] extends Function ? never : K; }[keyof T];
 export type DataProperties<T extends {}> = Pick<T, NonFunctionPropertyNames<T>>;
+export type RequiredKeys<T> = { [K in keyof T]-?:
+    ({} extends { [P in K]: T[K] } ? never : K)
+}[keyof T];
+export type RequiredProperties<T> = Pick<T, RequiredKeys<T>>;
+type IfEquals<X, Y, A, B = never> =
+    (<T>() => T extends X ? 1 : 2) extends
+    (<T>() => T extends Y ? 1 : 2) ? A : B;
+export type WritableDataPropertyNames<T> = { [P in keyof T]: IfEquals<{ [Q in P]: T[P] }, { -readonly [Q in P]: T[P] }, P> }[keyof T];
+export type WritableDataProperties<T> = { [P in WritableDataPropertyNames<T>]-?: P extends undefined ? never : T[P]; };// as keyof T];
 export type PropertyDefinition<T = any> = T | TypedPropertyDescriptor<T>;
 export type PropertyDefinitionMap<T extends {}> = { [K in keyof T]: PropertyDefinition<T[K]>; };
 export type InferPropertyDefinition<T> =
