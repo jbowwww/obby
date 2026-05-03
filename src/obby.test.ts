@@ -1,4 +1,63 @@
 import obby, { isPropertyDescriptor } from "./obby";
+import type { InvokedProperties, NullaryFunctionPropertyNames } from "./obby";
+
+type Equal<Left, Right> =
+    (<Value>() => Value extends Left ? 1 : 2) extends
+    (<Value>() => Value extends Right ? 1 : 2)
+        ? true
+        : false;
+type Expect<Value extends true> = Value;
+
+type DemoType = {
+    name: string;
+    readonly frozen: string;
+    count?: number;
+    label(): string;
+    hydrate(value: string): number;
+    ready(): Promise<boolean>;
+};
+
+class DemoClassType {
+    name = "demo";
+    label() {
+        return this.name;
+    }
+    ready() {
+        return Promise.resolve(true);
+    }
+    hydrate(value: string) {
+        return value.length;
+    }
+}
+
+class DemoDerivedClassType extends DemoClassType {
+    slug = "demo";
+    summary() {
+        return `${this.name}:${this.slug}`;
+    }
+}
+
+type _NullaryFunctionPropertyNames = Expect<
+    Equal<NullaryFunctionPropertyNames<DemoType>, "label" | "ready">
+>;
+type _InvokedProperties = Expect<
+    Equal<
+        InvokedProperties<DemoType, "label" | "ready">,
+        { label: string; ready: boolean }
+    >
+>;
+type _NullaryFunctionPropertyNamesForClass = Expect<
+    Equal<NullaryFunctionPropertyNames<DemoClassType>, "label" | "ready">
+>;
+type _InvokedPropertiesForClass = Expect<
+    Equal<
+        InvokedProperties<DemoClassType, "label" | "ready">,
+        { label: string; ready: boolean }
+    >
+>;
+type _NullaryFunctionPropertyNamesForDerivedClass = Expect<
+    Equal<NullaryFunctionPropertyNames<DemoDerivedClassType>, "label" | "ready" | "summary">
+>;
 
 describe("isPropertyDescriptor", () => {
     test("accepts valid descriptors and rejects invalid descriptor-like objects", () => {

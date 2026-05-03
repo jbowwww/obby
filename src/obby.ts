@@ -147,6 +147,15 @@ export type PropertyDescriptors<T extends {}> = { [K in keyof T]: TypedPropertyD
 export type FunctionPropertyNames<T extends {}> = { [K in keyof T]: T[K] extends Function ? K : never; }[keyof T];
 export type FunctionProperties<T extends {}> = Pick<T, FunctionPropertyNames<T>>;
 export type NonFunctionPropertyNames<T extends {}> = { [K in keyof T]: T[K] extends Function ? never : K; }[keyof T];
+type StringPropertyNames<T extends {}> = Extract<keyof T, string>;
+export type NullaryFunctionPropertyNames<T extends {}> = {
+    [K in StringPropertyNames<T>]:
+        T[K] extends (this: any, ...args: infer P) => any
+            ? (P extends [] ? K : never)
+            : T[K] extends (...args: infer P) => any
+                ? (P extends [] ? K : never)
+            : never;
+}[StringPropertyNames<T>];
 export type DataProperties<T extends {}> = Pick<T, NonFunctionPropertyNames<T>>;
 export type RequiredKeys<T> = { [K in keyof T]-?:
     ({} extends { [P in K]: T[K] } ? never : K)
@@ -157,6 +166,13 @@ type IfEquals<X, Y, A, B = never> =
     (<T>() => T extends Y ? 1 : 2) ? A : B;
 export type WritableDataPropertyNames<T> = { [P in keyof T]: IfEquals<{ [Q in P]: T[P] }, { -readonly [Q in P]: T[P] }, P> }[keyof T];
 export type WritableDataProperties<T> = { [P in WritableDataPropertyNames<T>]-?: P extends undefined ? never : T[P]; };// as keyof T];
+export type InvokedReturnType<T> =
+    T extends (this: any, ...args: any[]) => infer R ? Awaited<R> :
+    T extends (...args: any[]) => infer R ? Awaited<R> :
+    T;
+export type InvokedProperties<T extends {}, K extends keyof T = keyof T> = {
+    [P in K]: InvokedReturnType<T[P]>;
+};
 export type PropertyDefinition<T = any> = T | TypedPropertyDescriptor<T>;
 export type PropertyDefinitionMap<T extends {}> = { [K in keyof T]: PropertyDefinition<T[K]>; };
 export type InferPropertyDefinition<T> =
