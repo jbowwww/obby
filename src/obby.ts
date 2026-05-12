@@ -4,8 +4,8 @@ export const isBoolean = (v: any): v is boolean => typeof v === "boolean";
 export const isNumber = (v: any): v is number => typeof v === "number";
 export const isString = (v: any): v is string => typeof v === "string";
 export const isFalseOrEmptyString = (v: string): boolean => v === undefined || v === null || v.trim() === "";
-export const hasPrototype = (prototype: object, value: Constructor<any>): boolean =>
-    value && (value === prototype || (prototype && hasPrototype(prototype, value.prototype)));
+export const hasPrototype = (prototype: object, value: unknown): boolean =>
+    !!value && (value === prototype || (prototype && (typeof value === "object" && "prototype" in value) ? hasPrototype(prototype, value.prototype) : false));
 export const isObject = (o: any): o is Object => !!o && typeof o === "object" && !Array.isArray(o) && !isDate(o);
 export const isNonDateObject = (o: any): o is Object => typeof o === "object" && !isDate(o) && !(o instanceof Date);
 export const isNonArrayObject = (o: any): o is Object => typeof o === "object" && !Array.isArray(o) && !(o instanceof Date);
@@ -33,7 +33,8 @@ export const isPlainObject = (o: any): o is Record<string, unknown> => {
   return proto === Object.prototype || proto === null;
 }
 export type AnyParameters<T = any> = [] | [T] | T[];  // Use for ...rest parameters on functions, this type better handles both 0, 1, or more arguments, while using any[] sometimes fails with one parameter
-export type NonEmptyArray<T = any> = [T] | T[];
+export type EmptyParameters = [];
+export type NonEmptyParameters<T = any> = [T] | T[];
 export type Array<T> = T[];
 
 export type Optional<T extends {}, K extends keyof T> = Omit<T, K> & { [P in K]?: T[P]; }
@@ -117,6 +118,7 @@ export function isGetterDescriptor(value: PropertyDescriptor): boolean { return 
 export function isSetterDescriptor(value: PropertyDescriptor): boolean { return !!value.set; }
 export function isDataDescriptor(value: PropertyDescriptor): boolean { return !!value.value; }
 
+// Can I replace usage of this with Constructor? Should this be an instance type instead? is that useful? maybe as a util to extract instance from Constructor?
 export type Class<A extends { new(...args: AnyParameters): A; } = any, P extends AnyParameters = AnyParameters> = { new(...args: P): InstanceType<A>; };
 
 export type AsyncGeneratorFunction<I = any, O = any, R = any, N = any, L extends number = 0 | 1> =
@@ -134,14 +136,23 @@ export const isAsyncGeneratorFunction = <I = any, O = any, R = any, N = any, L e
 export type TypeGuard<T> = (value: any) => value is T;
 
 export type AbstractConstructor<T = any> = abstract new (...args: any[]) => T;
-export type Constructor<T = any> = { name: string; new(...args: any[]): T; /* prototype: T; */ };
+// export type AbstractConstructor<T = any> = {
+//     name: string;
+//     prototype?: object;
+//     abstract new(...args: any[]): T;
+// };
+export type Constructor<T = any> = {
+    name?: string;
+    prototype?: object;
+    new(...args: any[]): T; /* prototype: T; */
+};
 export const isConstructor = <T = {}>(value: any, ctor?: AbstractConstructor<T>): value is Constructor<T> =>
     value && typeof value === "function" && value.prototype && (
         !ctor || (typeof ctor.name === "string" &&
             typeof ctor.prototype === "object" && hasPrototype(ctor.prototype, value as Constructor<T>)));
 
-export type AsyncFunction<A extends AnyParameters = [], R extends any = void> = (...args: A) => Promise<R>;
-export type MaybeAsyncFunction<A extends AnyParameters = [], R extends any = void> = (...args: A) => R | Promise<R>;
+export type AsyncFunction<A extends AnyParameters = EmptyParameters, R extends any = void> = (...args: A) => Promise<R>;
+export type MaybeAsyncFunction<A extends AnyParameters = EmptyParameters, R extends any = void> = (...args: A) => R | Promise<R>;
 
 export type PropertyDescriptors<T extends {}> = { [K in keyof T]: TypedPropertyDescriptor<T[K]>; };
 export type FunctionPropertyNames<T extends {}> = { [K in keyof T]: T[K] extends Function ? K : never; }[keyof T];
@@ -239,6 +250,7 @@ export type ValueUnion<T extends {}> = T[keyof T];
 export type DiscriminateUnion<T, K extends keyof T, V extends T[K]> = Extract<T, Record<K, V>>;
 export type DiscriminatedModel<T extends Record<K, T[K]>, K extends PropertyKey = "_T"> = { [V in T[K]]: DiscriminateUnion<T, K, V> };
 
+export const throwError = <E extends Error = Error>(error: E) => { throw error; };
 
 // TODO: make this a npm module ?
 export class obby<I extends {}> {
