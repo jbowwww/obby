@@ -119,7 +119,7 @@ export function isSetterDescriptor(value: PropertyDescriptor): boolean { return 
 export function isDataDescriptor(value: PropertyDescriptor): boolean { return !!value.value; }
 
 // Can I replace usage of this with Constructor? Should this be an instance type instead? is that useful? maybe as a util to extract instance from Constructor?
-export type Class<A extends { new(...args: AnyParameters): A; } = any, P extends AnyParameters = AnyParameters> = { new(...args: P): InstanceType<A>; };
+export type Class<T extends { new(...args: AnyParameters): T; } = any, P extends AnyParameters = AnyParameters> = { new(...args: P): InstanceType<T>; };
 
 export type AsyncGeneratorFunction<I = any, O = any, R = any, N = any, L extends number = 0 | 1> =
     (...args:
@@ -142,9 +142,9 @@ export type AbstractConstructor<T = any> = abstract new (...args: any[]) => T;
 //     abstract new(...args: any[]): T;
 // };
 export type Constructor<T = any> = {
-    name?: string;
-    prototype?: object;
-    new(...args: any[]): T; /* prototype: T; */
+    // name?: string;
+    // prototype?: object;
+    new(...args: AnyParameters): T; /* prototype: T; */
 };
 export const isConstructor = <T = {}>(value: any, ctor?: AbstractConstructor<T>): value is Constructor<T> =>
     value && typeof value === "function" && value.prototype && (
