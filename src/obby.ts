@@ -1,14 +1,26 @@
 import { isDate } from "node:util/types";
 
+export type Tagged<__T extends PropertyKey, _T = __T, T = void> = T & { [K in __T]: _T; };
+export type AnyRecord = Record<string | symbol, any>;
+export type Simplify<T> = { [K in keyof T]: T[K] } & {};
+
 export const isBoolean = (v: any): v is boolean => typeof v === "boolean";
 export const isNumber = (v: any): v is number => typeof v === "number";
 export const isString = (v: any): v is string => typeof v === "string";
 export const isFalseOrEmptyString = (v: string): boolean => v === undefined || v === null || v.trim() === "";
 export const hasPrototype = (prototype: object, value: unknown): boolean =>
-    !!value && (value === prototype || (prototype && (typeof value === "object" && "prototype" in value) ? hasPrototype(prototype, value.prototype) : false));
+    !!value &&
+    (value === prototype ||
+        (prototype && (typeof value === "object" || typeof value === "function") && "prototype" in value
+            ? hasPrototype(prototype, value.prototype)
+            : false));
 export const isObject = (o: any): o is Object => !!o && typeof o === "object" && !Array.isArray(o) && !isDate(o);
+export const isRecord = (value: unknown): value is AnyRecord =>
+    !!value && typeof value === "object" && !Array.isArray(value);
 export const isNonDateObject = (o: any): o is Object => typeof o === "object" && !isDate(o) && !(o instanceof Date);
 export const isNonArrayObject = (o: any): o is Object => typeof o === "object" && !Array.isArray(o) && !(o instanceof Date);
+export const hasOwn = (value: object, key: PropertyKey): boolean =>
+    Object.prototype.hasOwnProperty.call(value, key);
 const _isPropertyDescriptor = (value: any): value is PropertyDescriptor => {
     if (!value || typeof value !== "object" || Array.isArray(value)) return false;
     const hasDescriptorKey = "value" in value || "writable" in value || "get" in value || "set" in value || "enumerable" in value || "configurable" in value;
@@ -35,6 +47,7 @@ export const isPlainObject = (o: any): o is Record<string, unknown> => {
 export type AnyParameters<T = any> = [] | [T] | T[];  // Use for ...rest parameters on functions, this type better handles both 0, 1, or more arguments, while using any[] sometimes fails with one parameter
 export type EmptyParameters = [];
 export type NonEmptyParameters<T = any> = [T] | T[];
+export type NonEmptyArray<T = any> = [T] | T[];
 export type Array<T> = T[];
 
 export type Optional<T extends {}, K extends keyof T> = Omit<T, K> & { [P in K]?: T[P]; }
@@ -102,7 +115,10 @@ export type Function<A extends AnyParameters = any[], R extends any = any> = ((.
 export const isFunction = <A extends AnyParameters = AnyParameters, R extends any = any>(fn: any): fn is Function<A, R> => typeof fn === "function";
 export const isPlainFunction = (fn: any): fn is Function => isFunction(fn) && !isAsyncGeneratorFunction(fn);
 export const getFunctionName = (fn: Function, ...fallbackNames: string[]) => (fn.name?.trim() ?? "").length > 0 ? fn.name : fallbackNames.length > 0 ? fallbackNames.reduce((setName, nextName) => setName?.trim() === "" ? nextName : setName) : "(anon)";
-export const isThenable = <T = any>(value: any): value is PromiseLike<T> => "then" in value && typeof value.then === "function";
+export const isThenable = <T = any>(value: unknown): value is PromiseLike<T> =>
+    !!value &&
+    (typeof value === "object" || typeof value === "function") &&
+    typeof (value as { then?: unknown }).then === "function";
 export const makeFunction = <P extends AnyParameters, R extends any>(name: string, fn: Function<P, R>) => Object.defineProperty(fn, "name", { value: name });
 export type ObjectOrFunction = {} | (() => {});
 export function makeObject<O extends ObjectOrFunction, A extends AnyParameters>(objectOrFunction: O, ...args: A): O;
@@ -118,18 +134,27 @@ export function isGetterDescriptor(value: PropertyDescriptor): boolean { return 
 export function isSetterDescriptor(value: PropertyDescriptor): boolean { return !!value.set; }
 export function isDataDescriptor(value: PropertyDescriptor): boolean { return !!value.value; }
 
-// Can I replace usage of this with Constructor? Should this be an instance type instead? is that useful? maybe as a util to extract instance from Constructor?
-export type Class<T extends { new(...args: AnyParameters): T; } = any, P extends AnyParameters = AnyParameters> = { new(...args: P): InstanceType<T>; };
+export type Class<T = any, P extends any[] = any[]> = abstract new (...args: P) => T;
+export type Instance<C extends Class> = C extends abstract new (...args: any[]) => infer T ? T : never;
 
 export type AsyncGeneratorFunction<I = any, O = any, R = any, N = any, L extends number = 0 | 1> =
     (...args:
         L extends 1 ? [AsyncIterable<I>/* , ...extra: AnyParameters */] :
         L extends 0 ? [/* ...extra: AnyParameters */] : [AsyncIterable<I>, ...extra: AnyParameters]) => AsyncGenerator<O, R, N>;
 
-export const isIterable = <T = any, R = any, N = any>(value: any): value is Iterable<T, R, N> => typeof value === "object" && Symbol.iterator in value && typeof value[Symbol.iterator] === "function";
-export const isGenerator = <T = any, R = any, N = any>(value: any): value is Generator<T, R, N> => typeof value === "object" && isIterable(value) && "next" in value && typeof value.next === "function";
-export const isAsyncIterable = <T = any, R = any, N = any>(value: any): value is AsyncIterable<T, R, N> => typeof value === "object" && Symbol.asyncIterator in value && typeof value[Symbol.asyncIterator] === "function";
-export const isAsyncGenerator = <T = any, R = any, N = any>(value: any): value is AsyncGenerator<T, R, N> => typeof value === "object" && isAsyncIterable(value) && "next" in value && typeof value.next === "function";
+export const isIterable = <T = any, R = any, N = any>(value: unknown): value is Iterable<T, R, N> =>
+    (typeof value === "string" || (!!value && (typeof value === "object" || typeof value === "function"))) &&
+    typeof (value as { [Symbol.iterator]?: unknown })[Symbol.iterator] === "function";
+export const isGenerator = <T = any, R = any, N = any>(value: unknown): value is Generator<T, R, N> =>
+    isIterable(value) &&
+    typeof (value as { next?: unknown }).next === "function";
+export const isAsyncIterable = <T = any, R = any, N = any>(value: unknown): value is AsyncIterable<T, R, N> =>
+    !!value &&
+    (typeof value === "object" || typeof value === "function") &&
+    typeof (value as { [Symbol.asyncIterator]?: unknown })[Symbol.asyncIterator] === "function";
+export const isAsyncGenerator = <T = any, R = any, N = any>(value: unknown): value is AsyncGenerator<T, R, N> =>
+    isAsyncIterable(value) &&
+    typeof (value as { next?: unknown }).next === "function";
 export const isAsyncGeneratorFunction = <I = any, O = any, R = any, N = any, L extends 0 | 1 = 0 | 1>(value: any, argumentsLength?: L): value is AsyncGeneratorFunction<I, R, N> =>
     typeof value === "function" && typeof value === "function" && isAsyncGenerator<O, R, N>(value.prototype) && (!argumentsLength || value.length === argumentsLength);
 
@@ -158,15 +183,15 @@ export type PropertyDescriptors<T extends {}> = { [K in keyof T]: TypedPropertyD
 export type FunctionPropertyNames<T extends {}> = { [K in keyof T]: T[K] extends Function ? K : never; }[keyof T];
 export type FunctionProperties<T extends {}> = Pick<T, FunctionPropertyNames<T>>;
 export type NonFunctionPropertyNames<T extends {}> = { [K in keyof T]: T[K] extends Function ? never : K; }[keyof T];
-type StringPropertyNames<T extends {}> = Extract<keyof T, string>;
+export type StringKeys<T extends {}> = Extract<keyof T, string>;
 export type NullaryFunctionPropertyNames<T extends {}> = {
-    [K in StringPropertyNames<T>]:
+    [K in StringKeys<T>]:
         T[K] extends (this: any, ...args: infer P) => any
             ? (P extends [] ? K : never)
             : T[K] extends (...args: infer P) => any
                 ? (P extends [] ? K : never)
             : never;
-}[StringPropertyNames<T>];
+}[StringKeys<T>];
 export type DataProperties<T extends {}> = Pick<T, NonFunctionPropertyNames<T>>;
 export type RequiredKeys<T> = { [K in keyof T]-?:
     ({} extends { [P in K]: T[K] } ? never : K)
@@ -176,7 +201,11 @@ type IfEquals<X, Y, A, B = never> =
     (<T>() => T extends X ? 1 : 2) extends
     (<T>() => T extends Y ? 1 : 2) ? A : B;
 export type WritableDataPropertyNames<T> = { [P in keyof T]: IfEquals<{ [Q in P]: T[P] }, { -readonly [Q in P]: T[P] }, P> }[keyof T];
+export type WritableNonFunctionPropertyNames<T extends {}> = Extract<WritableDataPropertyNames<T>, NonFunctionPropertyNames<T>>;
 export type WritableDataProperties<T> = { [P in WritableDataPropertyNames<T>]-?: P extends undefined ? never : T[P]; };// as keyof T];
+export type MutableOptional<T> = {
+    -readonly [K in keyof T]?: T[K];
+};
 export type InvokedReturnType<T> =
     T extends (this: any, ...args: any[]) => infer R ? Awaited<R> :
     T extends (...args: any[]) => infer R ? Awaited<R> :
@@ -250,7 +279,162 @@ export type ValueUnion<T extends {}> = T[keyof T];
 export type DiscriminateUnion<T, K extends keyof T, V extends T[K]> = Extract<T, Record<K, V>>;
 export type DiscriminatedModel<T extends Record<K, T[K]>, K extends PropertyKey = "_T"> = { [V in T[K]]: DiscriminateUnion<T, K, V> };
 
+export type Choose<
+    T extends Record<string | number, any>,
+    K extends string | number
+> = K extends `${infer U}.${infer Rest}` ? Choose<T[U], Rest> : T[K];
+
+export type Join<K extends string | number, P extends string | number> = `${K}.${P}`;
+export type DeepProps<
+    T extends Record<string | number, any>,
+    K extends Exclude<keyof T, symbol> = Exclude<keyof T, symbol>,
+    U extends string | number = ""
+> = T[K] extends Record<string | number, any> ?
+    (U extends "" ? K : U) |
+    DeepProps<
+        T[K],
+        Exclude<keyof T[K], symbol>,
+        U extends ""
+        ? Join<K, Exclude<keyof T[K], symbol>>
+        : U | Join<U, Exclude<keyof T[K], symbol>>
+    > : U;
+
 export const throwError = <E extends Error = Error>(error: E) => { throw error; };
+
+const getUnorderedParameters = <P1, P2>(
+    p1: P1 | P2, typeGuard1: TypeGuard<P1>,
+    p2: P2 | P1 | undefined, typeGuard2: TypeGuard<P2>
+): [P1, P2] => {
+    let r1: P1, r2: P2;
+    if (!p2) {
+        if (!p1 || !typeGuard1(p1)) {
+            throw new TypeError("getUnorderedParameters(): First parameter should be a P1, or a P2 object followed by a P1");
+        }
+    } else if (typeGuard1(p1)) {
+        r1 = p1;
+        r2 = p2 as P2;
+    } else if (typeGuard2(p1)) {
+        if (!typeGuard1(p2)) {
+            throw new TypeError("getUnorderedParameters(): First parameter should be a P1, or a P2 object followed by a P1");
+        }
+        r1 = p2;
+        r2 = p1;
+    }
+    return [r1!, r2!];
+};
+
+const getUnorderedParameterAndOption = <P1, P2>(
+    p1: P1 | Partial<P2>, typeGuard1: (value: any) => boolean,
+    p2: Partial<P2> | P1 | undefined, typeGuard2: (value: any) => boolean,
+    defaultOptions?: P2
+): [P1, P2] => {
+    let [r1, r2] = getUnorderedParameters(p1 as P1 | P2, typeGuard1 as TypeGuard<P1>, p2 as P2 | P1 | undefined, typeGuard2 as TypeGuard<P2>);
+    if (defaultOptions) {
+        r2 = { ...defaultOptions, ...r2 };
+    }
+    return [r1, r2];
+};
+
+export type ThrottleOptions = {
+    expiryAgeMs: number;
+};
+export const ThrottleOptions = makeDefaultOptions<ThrottleOptions>({
+    expiryAgeMs: 0,
+});
+export const throttle = <R extends any>(
+    fnOrOptions: AsyncFunction<[], R> | ThrottleOptions,
+    optionsOrFn?: AsyncFunction<[], R> | ThrottleOptions,
+) => {
+    const [fn, options] = getUnorderedParameterAndOption<AsyncFunction<[], R>, ThrottleOptions>(
+        fnOrOptions, isFunction as TypeGuard<AsyncFunction<[], R>>,
+        optionsOrFn, isRecord as TypeGuard<ThrottleOptions>);
+    let isCached = false;
+    let pendingPr: Promise<R>;
+    let cached: R | null = null;
+    return (): Promise<R> => {
+        if (!isCached) {
+            isCached = true;
+            cached = null;
+            pendingPr = fn().then(r => cached = r);
+            setTimeout(() => {
+                isCached = false;
+            }, options.expiryAgeMs);
+        }
+        return cached === null ? pendingPr : Promise.resolve(cached);
+    };
+};
+
+export type MemoizeOptions = Omit<ThrottleOptions, "expiryAgeMs">;
+export const memoize = <R extends any>(
+    fnOrOptions: AsyncFunction<[], R> | MemoizeOptions,
+    optionsOrFn?: AsyncFunction<[], R> | MemoizeOptions,
+) => throttle(fnOrOptions as AsyncFunction<[], R> | ThrottleOptions, { ...optionsOrFn, expiryAgeMs: 0, });
+
+export const findPropertyDescriptor = (value: object, key: PropertyKey): PropertyDescriptor | undefined => {
+    let current: object | null = value;
+    while (current) {
+        const descriptor = Object.getOwnPropertyDescriptor(current, key);
+        if (descriptor) {
+            return descriptor;
+        }
+        current = Object.getPrototypeOf(current);
+    }
+    return undefined;
+};
+
+export const defineShadowValue = (instance: object, key: PropertyKey, value: unknown) => {
+    Object.defineProperty(instance, key, {
+        value,
+        writable: true,
+        configurable: true,
+        enumerable: true,
+    });
+};
+
+export const hydrateInto = <T>(instance: T, data: object): T => {
+    for (const key of Reflect.ownKeys(data)) {
+        const value = (data as Record<PropertyKey, unknown>)[key];
+        const descriptor = findPropertyDescriptor(Object.getPrototypeOf(instance as object), key);
+        if (descriptor?.get && !descriptor.set) {
+            defineShadowValue(instance as object, key, value);
+            continue;
+        }
+        (instance as Record<PropertyKey, unknown>)[key] = value;
+    }
+    return instance;
+};
+
+export function combinePrototypes<C extends readonly Class[]>(...classes: C): Constructor {
+    const combined: Constructor = class {};
+    for (const c of classes) {
+        if ("prototype" in c) {
+            Object.assign(combined, c.prototype);
+        }
+    }
+    return class extends combined { };
+}
+
+export type InputFn<I, C extends Class> = (input: I) => Instance<C>;
+export type UnionClass<I, C extends Class> = Constructor<Instance<C>> & {
+    create(input: I): Promise<Instance<C>>;
+};
+let unionCount = 0;
+export function UnionClass<I, C extends Class>(inputFn: InputFn<I, C>, ...classes: C[]) {
+    return NamedUnionClass<I, C>(`NewUnion${unionCount++}`, inputFn, ...classes);
+}
+export function NamedUnionClass<I, C extends Class>(name: string, inputFn: InputFn<I, C>, ...classes: C[]) {
+    const base = combinePrototypes(...classes);
+    const union = class extends base {
+        constructor(input: I) {
+            super();
+            return inputFn(input) as Instance<C>;
+        }
+        static async create(input: I) {
+            return await inputFn(input);
+        }
+    };
+    return wrap(union, { name }) as UnionClass<I, C>;
+}
 
 // TODO: make this a npm module ?
 export class obby<I extends {}> {
