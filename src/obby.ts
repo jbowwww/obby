@@ -181,7 +181,8 @@ export type MaybeAsyncFunction<A extends AnyParameters = EmptyParameters, R exte
 
 export type PropertyDescriptors<T extends {}> = { [K in keyof T]: TypedPropertyDescriptor<T[K]>; };
 export type FunctionPropertyNames<T extends {}> = { [K in keyof T]: T[K] extends Function ? K : never; }[keyof T];
-export type FunctionProperties<T extends {}> = Pick<T, FunctionPropertyNames<T>>;
+export type FunctionOnly<T extends {}> = Pick<T, FunctionPropertyNames<T>>;
+export type FunctionsOnly<T extends {}> = FunctionOnly<T>;
 export type NonFunctionPropertyNames<T extends {}> = { [K in keyof T]: T[K] extends Function ? never : K; }[keyof T];
 export type StringKeys<T extends {}> = Extract<keyof T, string>;
 export type NullaryFunctionPropertyNames<T extends {}> = {
@@ -192,17 +193,17 @@ export type NullaryFunctionPropertyNames<T extends {}> = {
                 ? (P extends [] ? K : never)
             : never;
 }[StringKeys<T>];
-export type DataProperties<T extends {}> = Pick<T, NonFunctionPropertyNames<T>>;
+export type DataOnly<T extends {}> = Pick<T, NonFunctionPropertyNames<T>>;
 export type RequiredKeys<T> = { [K in keyof T]-?:
     ({} extends { [P in K]: T[K] } ? never : K)
 }[keyof T];
-export type RequiredProperties<T> = Pick<T, RequiredKeys<T>>;
+export type RequiredOnly<T> = Pick<T, RequiredKeys<T>>;
 type IfEquals<X, Y, A, B = never> =
     (<T>() => T extends X ? 1 : 2) extends
     (<T>() => T extends Y ? 1 : 2) ? A : B;
 export type WritableDataPropertyNames<T> = { [P in keyof T]: IfEquals<{ [Q in P]: T[P] }, { -readonly [Q in P]: T[P] }, P> }[keyof T];
 export type WritableNonFunctionPropertyNames<T extends {}> = Extract<WritableDataPropertyNames<T>, NonFunctionPropertyNames<T>>;
-export type WritableDataProperties<T> = { [P in WritableDataPropertyNames<T>]-?: P extends undefined ? never : T[P]; };// as keyof T];
+export type WritableDataOnly<T> = { [P in WritableDataPropertyNames<T>]-?: P extends undefined ? never : T[P]; };// as keyof T];
 export type MutableOptional<T> = {
     -readonly [K in keyof T]?: T[K];
 };
