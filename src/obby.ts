@@ -9,18 +9,15 @@ export const isNumber = (v: any): v is number => typeof v === "number";
 export const isString = (v: any): v is string => typeof v === "string";
 export const isFalseOrEmptyString = (v: string): boolean => v === undefined || v === null || v.trim() === "";
 export const hasPrototype = (prototype: object, value: unknown): boolean =>
-    !!value &&
-    (value === prototype ||
+    !!value && (value === prototype ||
         (prototype && (typeof value === "object" || typeof value === "function") && "prototype" in value
             ? hasPrototype(prototype, value.prototype)
             : false));
 export const isObject = (o: any): o is Object => !!o && typeof o === "object" && !Array.isArray(o) && !isDate(o);
-export const isRecord = (value: unknown): value is AnyRecord =>
-    !!value && typeof value === "object" && !Array.isArray(value);
+export const isRecord = (value: unknown): value is AnyRecord => !!value && typeof value === "object" && !Array.isArray(value);
 export const isNonDateObject = (o: any): o is Object => typeof o === "object" && !isDate(o) && !(o instanceof Date);
 export const isNonArrayObject = (o: any): o is Object => typeof o === "object" && !Array.isArray(o) && !(o instanceof Date);
-export const hasOwn = (value: object, key: PropertyKey): boolean =>
-    Object.prototype.hasOwnProperty.call(value, key);
+export const hasOwn = (value: object, key: PropertyKey): boolean => Object.prototype.hasOwnProperty.call(value, key);
 const _isPropertyDescriptor = (value: any): value is PropertyDescriptor => {
     if (!value || typeof value !== "object" || Array.isArray(value)) return false;
     const hasDescriptorKey = "value" in value || "writable" in value || "get" in value || "set" in value || "enumerable" in value || "configurable" in value;
@@ -54,9 +51,7 @@ export type Optional<T extends {}, K extends keyof T> = Omit<T, K> & { [P in K]?
 export type PartiallyRequired<T extends {}, R extends keyof T> = Required<Pick<T, R>> & Partial<Omit<T, R>>;
 export type MaybeAsync<T> = T | Promise<T>;
 export type MaybeAsyncFn<I extends AnyParameters = AnyParameters, T = any> = (...args: I) => MaybeAsync<T>;
-export type MaybeAsyncGenerator<T, TReturn = any, TNext = any> =
-  | Generator<T, TReturn, TNext>
-  | AsyncGenerator<T, TReturn, TNext>;
+export type MaybeAsyncGenerator<T, TReturn = any, TNext = any> = Generator<T, TReturn, TNext> | AsyncGenerator<T, TReturn, TNext>;
 
 export type Primitive =
   | string
@@ -72,8 +67,9 @@ export type Primitive =
 
 export type IsAny<T> = 0 extends 1 & T ? true : false;
 export type IsUnknown<T> = unknown extends T ? (T extends unknown ? true : false) : false;
+
 export type IsArray<T, U = any> = T extends readonly U[] ? true : false;
-export type GetArrayElementType<T extends Array<any>> = T extends Array<infer U> ? U : never;
+export type InferArrayElementType<T extends readonly any[]> = T extends (infer U)[] ? U : never;
 
 export type DotPath<T> = IsAny<T> extends true
   ? string
@@ -116,9 +112,7 @@ export const isFunction = <A extends AnyParameters = AnyParameters, R extends an
 export const isPlainFunction = (fn: any): fn is Function => isFunction(fn) && !isAsyncGeneratorFunction(fn);
 export const getFunctionName = (fn: Function, ...fallbackNames: string[]) => (fn.name?.trim() ?? "").length > 0 ? fn.name : fallbackNames.length > 0 ? fallbackNames.reduce((setName, nextName) => setName?.trim() === "" ? nextName : setName) : "(anon)";
 export const isThenable = <T = any>(value: unknown): value is PromiseLike<T> =>
-    !!value &&
-    (typeof value === "object" || typeof value === "function") &&
-    typeof (value as { then?: unknown }).then === "function";
+    !!value && (typeof value === "object" || typeof value === "function") && typeof (value as { then?: unknown }).then === "function";
 export const makeFunction = <P extends AnyParameters, R extends any>(name: string, fn: Function<P, R>) => Object.defineProperty(fn, "name", { value: name });
 export type ObjectOrFunction = {} | (() => {});
 export function makeObject<O extends ObjectOrFunction, A extends AnyParameters>(objectOrFunction: O, ...args: A): O;
@@ -146,15 +140,12 @@ export const isIterable = <T = any, R = any, N = any>(value: unknown): value is 
     (typeof value === "string" || (!!value && (typeof value === "object" || typeof value === "function"))) &&
     typeof (value as { [Symbol.iterator]?: unknown })[Symbol.iterator] === "function";
 export const isGenerator = <T = any, R = any, N = any>(value: unknown): value is Generator<T, R, N> =>
-    isIterable(value) &&
-    typeof (value as { next?: unknown }).next === "function";
+    isIterable(value) && typeof (value as { next?: unknown }).next === "function";
 export const isAsyncIterable = <T = any, R = any, N = any>(value: unknown): value is AsyncIterable<T, R, N> =>
-    !!value &&
-    (typeof value === "object" || typeof value === "function") &&
+    !!value && (typeof value === "object" || typeof value === "function") &&
     typeof (value as { [Symbol.asyncIterator]?: unknown })[Symbol.asyncIterator] === "function";
 export const isAsyncGenerator = <T = any, R = any, N = any>(value: unknown): value is AsyncGenerator<T, R, N> =>
-    isAsyncIterable(value) &&
-    typeof (value as { next?: unknown }).next === "function";
+    isAsyncIterable(value) && typeof (value as { next?: unknown }).next === "function";
 export const isAsyncGeneratorFunction = <I = any, O = any, R = any, N = any, L extends 0 | 1 = 0 | 1>(value: any, argumentsLength?: L): value is AsyncGeneratorFunction<I, R, N> =>
     typeof value === "function" && typeof value === "function" && isAsyncGenerator<O, R, N>(value.prototype) && (!argumentsLength || value.length === argumentsLength);
 
